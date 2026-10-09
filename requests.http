@@ -1,0 +1,32 @@
+@baseUrl = http://localhost:8080
+@password = ExamplePassword123!
+
+### Регистрация: ID сохраняется в переменную IntelliJ HTTP Client
+POST {{baseUrl}}/user/register
+Content-Type: application/json
+
+{
+  "first_name": "Иван",
+  "second_name": "Иванов",
+  "birthdate": "1995-05-20",
+  "gender": "MALE",
+  "biography": "Java, музыка",
+  "city": "Москва",
+  "password": "{{password}}"
+}
+
+> {% client.global.set("userId", response.body.user_id); %}
+
+### Вход
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "id": "{{userId}}",
+  "password": "{{password}}"
+}
+
+> {% client.global.set("token", response.body.token); %}
+
+### Публичная анкета
+GET {{baseUrl}}/user/get/{{userId}}

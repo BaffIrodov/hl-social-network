@@ -1,0 +1,401 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Social network — homework 1",
+    "version": "1.0.0",
+    "description": "OTUS API subset with gender, validation and agreed errors. All three endpoints are public."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "paths": {
+    "/login": {
+      "post": {
+        "description": "Упрощенный процесс аутентификации путем передачи идентификатор пользователя и получения токена для дальнейшего прохождения авторизации",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/UserId"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "ExamplePassword123!",
+                    "minLength": 12,
+                    "maxLength": 40,
+                    "pattern": "^[!-~]{12,40}$"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "password"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Успешная аутентификация",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "example": "e4d2e6b0-cde2-42c5-aac3-0b8316f21e58",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "token"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or incorrect password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Пользователь не найден",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/user/register": {
+      "post": {
+        "description": "Регистрация нового пользователя",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "first_name": {
+                    "type": "string",
+                    "example": "Имя",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "second_name": {
+                    "type": "string",
+                    "example": "Фамилия",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "birthdate": {
+                    "$ref": "#/components/schemas/BirthDate",
+                    "description": "ISO date YYYY-MM-DD, no later than today."
+                  },
+                  "biography": {
+                    "type": "string",
+                    "example": "Хобби, интересы и т.п.",
+                    "maxLength": 2000,
+                    "nullable": true
+                  },
+                  "city": {
+                    "type": "string",
+                    "example": "Москва",
+                    "maxLength": 100,
+                    "nullable": true
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "ExamplePassword123!",
+                    "minLength": 12,
+                    "maxLength": 40,
+                    "pattern": "^[!-~]{12,40}$"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": [
+                      "MALE",
+                      "FEMALE",
+                      "UNSPECIFIED"
+                    ],
+                    "default": "UNSPECIFIED",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "first_name",
+                  "second_name",
+                  "birthdate",
+                  "password"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Успешная регистрация",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": {
+                      "$ref": "#/components/schemas/UserId"
+                    }
+                  },
+                  "required": [
+                    "user_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Невалидные данные",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/user/get/{id}": {
+      "get": {
+        "description": "Получение анкеты пользователя",
+        "parameters": [
+          {
+            "name": "id",
+            "schema": {
+              "$ref": "#/components/schemas/UserId"
+            },
+            "required": true,
+            "in": "path",
+            "description": "Идентификатор пользователя"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешное получение анкеты пользователя",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Невалидные данные",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Анкета не найдена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "UserId": {
+        "type": "string",
+        "description": "Positive integer ID 1..2147483647, represented as a string without leading zeros.",
+        "pattern": "^[1-9][0-9]{0,9}$",
+        "example": "123"
+      },
+      "BirthDate": {
+        "type": "string",
+        "description": "Дата рождения",
+        "format": "date",
+        "example": "2017-02-01"
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/UserId"
+          },
+          "first_name": {
+            "type": "string",
+            "example": "Имя",
+            "description": "Имя",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "second_name": {
+            "type": "string",
+            "example": "Фамилия",
+            "description": "Фамилия",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "birthdate": {
+            "$ref": "#/components/schemas/BirthDate"
+          },
+          "biography": {
+            "type": "string",
+            "example": "Хобби, интересы и т.п.",
+            "description": "Интересы",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "example": "Москва",
+            "description": "Город",
+            "maxLength": 100,
+            "nullable": true
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          }
+        },
+        "required": [
+          "id",
+          "first_name",
+          "second_name",
+          "birthdate",
+          "gender",
+          "biography",
+          "city"
+        ],
+        "additionalProperties": false
+      },
+      "Gender": {
+        "type": "string",
+        "enum": [
+          "MALE",
+          "FEMALE",
+          "UNSPECIFIED"
+        ],
+        "default": "UNSPECIFIED"
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "message",
+          "request_id"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "message"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "400": {
+        "description": "Невалидные данные ввода"
+      },
+      "401": {
+        "description": "Неавторизованный доступ"
+      },
+      "5xx": {
+        "description": "Ошибка сервера",
+        "headers": {
+          "Retry-After": {
+            "description": "Время, через которое еще раз нужно сделать запрос",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Авторизация по токену, который был получен в методе /login"
+      }
+    }
+  }
+}

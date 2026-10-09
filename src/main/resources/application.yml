@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8080}
+spring:
+  application:
+    name: social-network
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5932/social_network}
+    username: ${DB_USERNAME:social_network}
+    password: ${DB_PASSWORD:local_password}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+app:
+  auth:
+    token-ttl: ${TOKEN_TTL:6h}

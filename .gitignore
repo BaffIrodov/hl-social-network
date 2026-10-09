@@ -1,0 +1,10 @@
+target/
+.env
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log
+
+# Local CA certificates for the current network
+docker/certs/*.crt
