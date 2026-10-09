@@ -3,8 +3,11 @@ package ru.otus.socialnetwork.api;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
+
 import java.util.Comparator;
 import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -20,8 +23,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
+@Slf4j
 public class ApiErrorHandler {
-    private static final Logger log = LoggerFactory.getLogger(ApiErrorHandler.class);
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ApiError> domain(ApiException exception, HttpServletRequest request) {
@@ -66,9 +69,11 @@ public class ApiErrorHandler {
         return response(HttpStatus.INTERNAL_SERVER_ERROR, "Внутренняя ошибка сервера", List.of(), request);
     }
 
-    private ResponseEntity<ApiError> response(HttpStatus status, String message, List<FieldError> errors,
-                                              HttpServletRequest request) {
-        return ResponseEntity.status(status).body(new ApiError(message, requestId(request), errors));
+    private ResponseEntity<ApiError> response(HttpStatus status, String message,
+            List<FieldError> errors,
+            HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .body(new ApiError(message, requestId(request), errors));
     }
 
     private static String requestId(HttpServletRequest request) {
@@ -84,6 +89,16 @@ public class ApiErrorHandler {
     }
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    public record ApiError(String message, @JsonProperty("request_id") String requestId, List<FieldError> errors) { }
-    public record FieldError(String field, String message) { }
+    public record ApiError(
+            String message,
+            @JsonProperty("request_id")
+            String requestId,
+            List<FieldError> errors
+    ) {
+
+    }
+
+    public record FieldError(String field, String message) {
+
+    }
 }
