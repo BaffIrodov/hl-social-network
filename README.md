@@ -11,7 +11,7 @@ ORM, кэширование, репликация и шардирование н
 
 Понадобится запущенный Docker Desktop (на Windows — с Linux-контейнерами) или Docker Engine
 с Compose v2. Локальные Java и Maven для этого варианта не нужны.
-Распакуйте архив и откройте терминал в папке `hl-social-network`, где находится `compose.yaml`.
+Распакуйте архив в новую папку и откройте терминал в папке проекта, где находится `compose.yaml`.
 Если у вас уже есть `.env`, выставьте в нём `DB_USERNAME=postgres` и `DB_PASSWORD=postgres`.
 
 ```shell
@@ -193,9 +193,10 @@ export DB_PASSWORD=postgres
 }
 ```
 
-Расширенный контракт находится в `docs/openapi.json`; исходный приложенный контракт —
-в `docs/otus-openapi.original.json`. Добавлен `gender`, конкретизированы валидация и ошибки.
-Другие методы большой спецификации OTUS пока не реализованы.
+Контракт реализованных методов: [docs/openapi.json](docs/openapi.json).
+Исходная спецификация OTUS: [docs/otus-openapi.original.json](docs/otus-openapi.original.json).
+API включает поле `gender`, правила валидации и описания ошибок.
+Остальные методы исходной спецификации пока не реализованы.
 
 ## Валидация и ошибки
 
@@ -360,8 +361,6 @@ docker compose exec db createdb -U postgres social_network_test
 
 Проверяются регистрация, публичные анкеты, Argon2id, UUID-токены, TTL и его настройка,
 ошибки ввода, SQL-инъекции, откат транзакции и повторное применение миграций.
-GitHub Actions настроен на выполнение этих проверок на Java 21 и обычном PostgreSQL 17.
-Результаты проверки в среде генерации и её ограничения: `docs/verification.md`.
 
 ```shell
 ./mvnw package
@@ -397,7 +396,7 @@ git push -u origin main
 ```
 
 Замените адрес на свой. `.gitignore` исключает `.env`, сборку и настройки IDE.
-README, Postman, спецификации, исходники и workflow попадут в репозиторий.
+README, Postman, спецификации и исходники попадут в репозиторий.
 
 ## Справочные материалы
 

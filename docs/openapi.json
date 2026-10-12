@@ -3,7 +3,7 @@
   "info": {
     "title": "Social network — homework 1",
     "version": "1.0.0",
-    "description": "OTUS API subset with gender, validation and agreed errors. All three endpoints are public."
+    "description": "API for registration, authentication and public profiles, with gender, input validation and error responses. All three endpoints are public."
   },
   "servers": [
     {
