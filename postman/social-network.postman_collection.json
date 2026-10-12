@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Social Network — Homework 1",
-    "description": "Public registration, login and profile API. Run requests in order. user_id and token are saved automatically.",
+    "description": "Регистрация, вход и публичная анкета. Два раздела по три запроса: ручная проверка без скриптов сохранения переменных и автоматическое сохранение user_id/token для подстановки в следующие запросы. Запросы каждого раздела выполняются по порядку; токен пока не используется запросами.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -27,16 +27,85 @@
       "key": "token",
       "value": "",
       "type": "string"
-    },
-    {
-      "key": "minimal_user_id",
-      "value": "",
-      "type": "string"
     }
   ],
   "item": [
     {
-      "name": "01 — Основной сценарий",
+      "name": "01 — Ручная проверка",
+      "description": "Регистрация → вход → анкета. ID переносится из ответа вручную в Body входа и URL анкеты. Переменные Postman не сохраняются запросами. base_url и password читаются из настроек коллекции/окружения.",
+      "item": [
+        {
+          "name": "Регистрация",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/user/register",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Выполните регистрацию и скопируйте user_id из ответа. Этот запрос не сохраняет переменные Postman."
+          },
+          "response": []
+        },
+        {
+          "name": "Вход",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"1\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "В Body замените пример id \"1\" на user_id из ручной регистрации. Токен доступен в ответе; переменные Postman не сохраняются."
+          },
+          "response": []
+        },
+        {
+          "name": "Публичная анкета",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/user/get/1",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Замените конечный /1 в URL на user_id из ручной регистрации. Анкета публична, токен не требуется; переменные Postman не сохраняются."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 — Автоматическая подстановка переменных",
+      "description": "Регистрация → вход → анкета. Скрипты после ответа сохраняют user_id и token в переменные коллекции и окружения. Для Collection Runner/Newman выбирайте эту папку.",
       "item": [
         {
           "name": "Регистрация",
@@ -152,719 +221,6 @@
                   "  pm.expect(body).not.to.have.property(\"password\");",
                   "  pm.expect(body).not.to.have.property(\"password_hash\");",
                   "  pm.expect(body).not.to.have.property(\"token_hash\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "02 — Ошибки",
-      "item": [
-        {
-          "name": "Неверный пароль",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/login",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"{{user_id}}\",\n  \"password\": \"WrongPassword123!\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Несуществующий пользователь при входе",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/login",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"2147483647\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(404); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Несуществующая анкета",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/user/get/2147483647",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(404); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Неверный формат ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/user/get/abc",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ID вне integer",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/user/get/2147483648",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ID с ведущими нулями",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/user/get/001",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "SQL-инъекция в ID",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/login",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"1 OR 1=1\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Пробел в пароле",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"Password with space\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Короткий пароль",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"Short123!\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Длинный пароль",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Кириллица в пароле",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"Пароль12345678\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Пустое имя",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"   \",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Имя длиннее 100",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Некорректная дата",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-02-30\",\n  \"gender\": \"MALE\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Неизвестный gender",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"UNKNOWN\",\n  \"biography\": \"Java, музыка\",\n  \"city\": \"Москва\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Интересы длиннее 2000",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1995-05-20\",\n  \"gender\": \"MALE\",\n  \"biography\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"city\": \"Москва\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Ожидаемый HTTP-код\", function () { pm.response.to.have.status(400); });",
-                  "pm.test(\"Единая ошибка и request_id\", function () {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.message).to.be.a(\"string\");",
-                  "  pm.expect(body.request_id).to.eql(pm.response.headers.get(\"X-Request-Id\"));",
-                  "  pm.expect(body).not.to.have.property(\"password\");",
-                  "});"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "03 — Необязательные поля",
-      "item": [
-        {
-          "name": "Минимальная регистрация",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/user/register",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Мария\",\n  \"second_name\": \"Петрова\",\n  \"birthdate\": \"1998-07-15\",\n  \"password\": \"{{password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Регистрация без необязательных полей\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "  const id = pm.response.json().user_id;",
-                  "  pm.collectionVariables.set(\"minimal_user_id\", id);",
-                  "  pm.environment.set(\"minimal_user_id\", id);",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Анкета с дефолтами",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/user/get/{{minimal_user_id}}",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Значения по умолчанию\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.gender).to.eql(\"UNSPECIFIED\");",
-                  "  pm.expect(body.city).to.eql(null);",
-                  "  pm.expect(body.biography).to.eql(null);",
                   "});"
                 ]
               }

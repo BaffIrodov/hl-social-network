@@ -3,10 +3,10 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: social_network
-      POSTGRES_USER: social_network
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-local_password}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "${DB_PORT:-5932}:5932"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -20,28 +20,14 @@ services:
     ports:
       - "${SERVER_PORT:-8080}:8080"
     environment:
-      DB_URL: jdbc:postgresql://db:5932/social_network
-      DB_USERNAME: social_network
-      DB_PASSWORD: ${DB_PASSWORD:-local_password}
+      DB_URL: jdbc:postgresql://db:5432/social_network
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       TOKEN_TTL: ${TOKEN_TTL:-6h}
     depends_on:
       db:
         condition: service_healthy
 
-  db-test:
-    image: postgres:17-alpine
-    profiles: ["test"]
-    environment:
-      POSTGRES_DB: social_network_test
-      POSTGRES_USER: social_network
-      POSTGRES_PASSWORD: local_password
-    ports:
-      - "5433:5932"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
 
 volumes:
   postgres-data:

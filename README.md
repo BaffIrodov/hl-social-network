@@ -6,9 +6,13 @@ ORM, кэширование, репликация и шардирование н
 
 ## Быстрый запуск через Docker
 
-Понадобятся Docker с Compose v2 и доступ к интернету для загрузки образов и зависимостей.
-Локально устанавливать Java или Maven для этого варианта не нужно.
-Распакуйте архив, откройте терминал в папке `social-network-hw` и выполните:
+Подробная инструкция для Windows, Linux/macOS, IntelliJ IDEA и своей PostgreSQL:
+[Локальный запуск](docs/local-startup.md).
+
+Понадобится запущенный Docker Desktop (на Windows — с Linux-контейнерами) или Docker Engine
+с Compose v2. Локальные Java и Maven для этого варианта не нужны.
+Распакуйте архив и откройте терминал в папке `hl-social-network`, где находится `compose.yaml`.
+Если у вас уже есть `.env`, выставьте в нём `DB_USERNAME=postgres` и `DB_PASSWORD=postgres`.
 
 ```shell
 docker compose up --build -d
@@ -16,7 +20,9 @@ docker compose logs -f app
 ```
 
 Дождитесь сообщения `Started SocialNetworkApplication`. Приложение: `http://localhost:8080`.
-База: `localhost:5932`, database/user — `social_network`, пароль — `local_password`.
+Подключение к БД с компьютера: `localhost:5432`, база `social_network`,
+пользователь `postgres`, пароль `postgres`.
+Внутри сети Compose приложение использует `db:5432`.
 Liquibase автоматически создаёт таблицы при первом запуске и проверяет миграции при последующих.
 Ctrl+C завершает просмотр логов; контейнеры продолжают работать.
 
@@ -24,9 +30,11 @@ Ctrl+C завершает просмотр логов; контейнеры пр
 docker compose down
 ```
 
-Останавливает контейнеры, сохраняя данные в Docker volume `postgres-data`.
+Останавливает контейнеры, сохраняя данные в volume `postgres-data`.
 Для изменения портов или TTL скопируйте `.env.example` в `.env` и отредактируйте значения.
-Например, `DB_PORT=5435`, если порт 5932 занят.
+По умолчанию `DB_PORT=5432`. Если `.env` остался от прежнего запуска, обновите в нём `DB_PORT`.
+При наличии данных от предыдущего запуска смена переменных не переименовывает пользователя БД
+и не меняет его пароль: порядок перехода описан в [инструкции](docs/local-startup.md#существующая-база-от-предыдущей-версии).
 
 ## Ошибка сборки PKIX / certificate_unknown
 
@@ -87,47 +95,51 @@ HTTP-прокси только для сборки, маршрут этой ди
 Нужен JDK 21. Maven Wrapper включён: установленный Maven не обязателен.
 В IntelliJ IDEA откройте `pom.xml` как Maven-проект и выберите JDK 21 для проекта и Maven runner.
 
-1. Запустите только базу:
+Запустите только PostgreSQL. Если контейнер приложения уже запущен, остановите его,
+чтобы освободить порт 8080 для локального Java-процесса:
 
 ```shell
-docker compose up -d db
-```
-
-2. Проверьте Java и запустите приложение.
-
-Linux/macOS:
-
-```shell
-./mvnw --version
-./mvnw spring-boot:run
+docker compose stop app
+docker compose up -d --wait db
 ```
 
 Windows PowerShell:
 
 ```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/social_network"
+$env:DB_USERNAME = "postgres"
+$env:DB_PASSWORD = "postgres"
 .\mvnw.cmd --version
 .\mvnw.cmd spring-boot:run
 ```
 
-В IDE можно запускать класс `ru.otus.socialnetwork.SocialNetworkApplication`.
-При использовании своей PostgreSQL задайте `DB_URL`, `DB_USERNAME` и `DB_PASSWORD`.
-Например, в PowerShell:
+Linux/macOS:
 
-```powershell
-$env:DB_URL = "jdbc:postgresql://localhost:5435/social_network"
-$env:DB_USERNAME = "social_network"
-$env:DB_PASSWORD = "local_password"
-.\mvnw.cmd spring-boot:run
+```shell
+export DB_URL=jdbc:postgresql://localhost:5432/social_network
+export DB_USERNAME=postgres
+export DB_PASSWORD=postgres
+./mvnw --version
+./mvnw spring-boot:run
 ```
 
-Файл `.env` читает Docker Compose. Spring Boot при запуске из IDE или Maven автоматически его не читает:
-передайте нужные значения через переменные окружения или параметры приложения.
+В IDE можно запускать класс `ru.otus.socialnetwork.SocialNetworkApplication`.
+Укажите те же `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` в Environment variables конфигурации запуска.
+Файл `.env` читает Docker Compose; локальный запуск Spring Boot из IDE или Maven
+автоматически его не читает.
+
+Для PostgreSQL, установленной напрямую на компьютере, создайте базу `social_network`
+и задайте фактический порт в `DB_URL` (обычно 5432).
+Полный порядок запуска и настройки IDE: [docs/local-startup.md](docs/local-startup.md).
 
 ## API
 
 Все три метода доступны без `Authorization`. `/login` проверяет ID и пароль и выдаёт токен.
 Регистрация возвращает только `user_id`, без автоматического входа.
 Успешные ответы имеют код **200**, как в исходной спецификации.
+Токен, полученный после входа, не требуется для текущих трёх методов.
+Он возвращается по контракту `/login`; проверка сессии подготовлена для будущих
+защищённых операций, например редактирования собственной анкеты.
 
 | Метод | Назначение |
 |---|---|
@@ -268,16 +280,48 @@ SQL написан вручную; все пользовательские зн�
 - `postman/social-network.postman_collection.json`
 - `postman/local.postman_environment.json`
 
-Выберите окружение **Social Network — Local**. При необходимости измените `base_url`.
-Запустите всю коллекцию через Collection Runner либо выполните первый раздел по порядку:
-регистрация → вход → публичная анкета. `user_id` и `token` сохраняются автоматически.
-Коллекция содержит успешные сценарии, значения по умолчанию и отрицательные проверки.
-Пароль в окружении — демонстрационный. Каждый запуск коллекции создаёт новые анкеты.
+Выберите окружение **Social Network — Local**. Значения можно посмотреть через
+Environments → Social Network — Local или на вкладке Variables самой коллекции.
+`base_url` по умолчанию — `http://localhost:8080`, `password` — `ExamplePassword123!`.
+Эти две переменные читаются обоими разделами. `user_id` и `token` используются
+для сохранения результатов автоматического сценария.
 
-При установленном Node.js можно выполнить:
+В коллекции **шесть запросов**, разделённых на две папки.
+
+### 01 — Ручная проверка
+
+Три запроса без скриптов после ответа: регистрация → вход → публичная анкета.
+Переменные Postman автоматически не изменяются.
+
+1. Выполните «Регистрация» и скопируйте `user_id` из JSON-ответа.
+2. В «Вход» откройте Body и замените пример `"id": "1"` на полученный ID.
+   Используйте тот же пароль, что при регистрации. Выполните запрос.
+   UUID-токен останется в JSON-ответе и не будет записан в переменную `token`.
+3. В «Публичная анкета» замените конечный `/1` в URL на полученный ID и выполните запрос.
+
+Например, при ответе `{"user_id":"42"}` тело входа должно содержать `"id":"42"`,
+а URL анкеты — `{{base_url}}/user/get/42`.
+Токен для получения анкеты не требуется. ID `1` в запросах — редактируемый пример.
+Этот раздел предназначен для поочерёдного ручного выполнения.
+
+### 02 — Автоматическая подстановка переменных
+
+Те же три запроса со скриптами после ответа. Выполните их по порядку
+или запустите только эту папку в Collection Runner:
+
+1. «Регистрация» сохраняет полученный ID в `user_id`.
+2. «Вход» использует `{{user_id}}` и сохраняет UUID из ответа в `token`.
+3. «Публичная анкета» использует `{{user_id}}` в URL.
+
+Скрипты сохраняют результаты в переменные коллекции и выбранного окружения,
+а также проверяют успешные ответы. Сохранённый токен пока не передаётся в запросы:
+все три метода доступны без `Authorization`.
+Пароль в окружении — демонстрационный. Каждый запуск регистрации создаёт новую анкету.
+
+При установленном Node.js автоматический раздел можно выполнить через Newman:
 
 ```shell
-npx newman run postman/social-network.postman_collection.json -e postman/local.postman_environment.json
+npx newman run postman/social-network.postman_collection.json -e postman/local.postman_environment.json --folder "02 — Автоматическая подстановка переменных"
 ```
 
 ## Тесты и сборка
@@ -288,15 +332,28 @@ npx newman run postman/social-network.postman_collection.json -e postman/local.p
 ./mvnw test
 ```
 
-Интеграционные тесты запускаются на выделенной PostgreSQL, миграции применяются автоматически:
+Интеграционные тесты используют отдельную базу `social_network_test` на том же сервере
+PostgreSQL и порту 5432. Миграции применяются автоматически. Запустите сервер:
 
 ```shell
-docker compose --profile test up -d --wait db-test
+docker compose up -d --wait db
+```
+
+Один раз создайте тестовую БД, если её ещё нет:
+
+```shell
+docker compose exec db createdb -U postgres social_network_test
+```
+
+Запустите тесты:
+
+```shell
 ./mvnw -Pintegration-test verify
 ```
 
 На Windows используйте `.\mvnw.cmd` вместо `./mvnw`.
-По умолчанию тестовая БД: `jdbc:postgresql://localhost:5433/social_network_test`.
+По умолчанию тестовая БД: `jdbc:postgresql://localhost:5432/social_network_test`.
+По умолчанию пользователь и пароль тестовой БД — `postgres/postgres`.
 Можно переопределить `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`.
 Интеграционные тесты очищают таблицы приложения в тестовой БД перед каждым сценарием;
 используйте для них отдельную базу.
@@ -318,9 +375,9 @@ java -jar target/social-network-0.0.1-SNAPSHOT.jar
 | Переменная окружения | Значение по умолчанию |
 |---|---|
 | `SERVER_PORT` | `8080` |
-| `DB_URL` | `jdbc:postgresql://localhost:5932/social_network` |
-| `DB_USERNAME` | `social_network` |
-| `DB_PASSWORD` | `local_password` |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/social_network` |
+| `DB_USERNAME` | `postgres` |
+| `DB_PASSWORD` | `postgres` |
 | `TOKEN_TTL` | `6h` |
 
 В `.env` для Compose дополнительно доступен `DB_PORT` — порт БД на хосте.
