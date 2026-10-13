@@ -256,7 +256,6 @@ JWT, refresh-token и logout API в это ДЗ не входят.
 
 ## База и SQL
 
-Схемы и сценарии: `docs/architecture.md`.
 Миграции: `src/main/resources/db/changelog/001-initial-schema.sql`.
 Три таблицы приложения:
 
