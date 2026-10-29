@@ -19,7 +19,7 @@ docker compose logs -f app
 ```
 
 Дождитесь сообщения `Started SocialNetworkApplication`.
-Приложение доступно по адресу `http://localhost:8080`.
+Приложение доступно по адресу `http://localhost:8880`.
 
 Нажмите Ctrl+C, чтобы выйти из просмотра логов. Приложение продолжит работать.
 
@@ -36,7 +36,7 @@ docker compose down
 Импортируйте файл `postman/social-network.postman_collection.json`.
 
 Откройте коллекцию и на вкладке **Variables** проверьте:
-`base_url` должен содержать `http://localhost:8080`.
+`base_url` должен содержать `http://localhost:8880`.
 
 В коллекции есть два варианта проверки.
 

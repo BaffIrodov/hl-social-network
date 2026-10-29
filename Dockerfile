@@ -20,5 +20,5 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S -G app app
 COPY --from=build --chown=app:app /build/target/social-network-0.0.1-SNAPSHOT.jar /app/app.jar
 USER app
-EXPOSE 8080
+EXPOSE 8880
 ENTRYPOINT ["java", "-Duser.timezone=Europe/Moscow", "-jar", "/app/app.jar"]

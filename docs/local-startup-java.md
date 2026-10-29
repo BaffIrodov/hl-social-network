@@ -32,7 +32,7 @@ Windows PowerShell:
 ```
 
 Дождитесь сообщения `Started SocialNetworkApplication`.
-Приложение доступно по адресу `http://localhost:8080`.
+Приложение доступно по адресу `http://localhost:8880`.
 
 Для остановки приложения нажмите Ctrl+C.
 
