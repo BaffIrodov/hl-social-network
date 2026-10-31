@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Social network — homework 1",
-    "version": "1.0.0",
-    "description": "API for registration, authentication and public profiles, with gender, input validation and error responses. All three endpoints are public."
+    "title": "Social network",
+    "version": "1.1.0",
+    "description": "API for registration, authentication, public profiles and prefix search. All endpoints are public."
   },
   "servers": [
     {
@@ -235,6 +235,70 @@
           },
           "404": {
             "description": "Анкета не найдена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/user/search": {
+      "get": {
+        "description": "Поиск анкет одновременно по префиксам имени и фамилии с учётом регистра. Пробелы по краям удаляются. Символы %, _ и ! считаются обычным текстом. Все совпадения возвращаются по возрастанию числового ID, без пагинации. Параметр фамилии — second_name (в исходной спецификации OTUS — last_name).",
+        "parameters": [
+          {
+            "name": "first_name",
+            "in": "query",
+            "required": true,
+            "description": "Непустой префикс имени, не только пробелы",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "\\S",
+              "example": "Ив"
+            }
+          },
+          {
+            "name": "second_name",
+            "in": "query",
+            "required": true,
+            "description": "Непустой префикс фамилии, не только пробелы",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "\\S",
+              "example": "Ив"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Массив анкет; пустой массив, если совпадений нет",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Отсутствующий, пустой или слишком длинный префикс",
             "content": {
               "application/json": {
                 "schema": {

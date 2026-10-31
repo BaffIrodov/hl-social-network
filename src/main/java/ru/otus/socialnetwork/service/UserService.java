@@ -1,5 +1,6 @@
 package ru.otus.socialnetwork.service;
 
+import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,19 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfile getById(int id) {
         return users.findById(id).orElseThrow(ApiException::userNotFound);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserProfile> search(String firstName, String secondName) {
+        return users.searchByPrefixes(prefixPattern(firstName, "first_name"),
+                prefixPattern(secondName, "second_name"));
+    }
+
+    private static String prefixPattern(String value, String field) {
+        if (value == null || value.isBlank() || value.length() > 100) {
+            throw ApiException.badRequest("Префикс должен содержать от 1 до 100 символов и не состоять из пробелов", field);
+        }
+        return value.strip().replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
 
     private static String normalizeOptional(String value) {

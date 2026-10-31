@@ -30,3 +30,6 @@ Content-Type: application/json
 
 ### Публичная анкета
 GET {{baseUrl}}/user/get/{{userId}}
+
+### Поиск по префиксам имени и фамилии
+GET {{baseUrl}}/user/search?first_name=Ив&second_name=Ив

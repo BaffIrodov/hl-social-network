@@ -1,7 +1,7 @@
 package ru.otus.socialnetwork.api;
 
 import jakarta.validation.Valid;
-import org.springframework.http.MediaType;
+import java.util.List;
 import org.springframework.web.bind.annotation.*;
 import ru.otus.socialnetwork.api.dto.RegisterRequest;
 import ru.otus.socialnetwork.api.dto.RegisterResponse;
@@ -24,5 +24,12 @@ public class UserController {
     @GetMapping("/get/{id}")
     public UserResponse get(@PathVariable String id) {
         return UserResponse.from(users.getById(UserIds.parse(id)));
+    }
+
+    @GetMapping("/search")
+    public List<UserResponse> search(
+            @RequestParam(name = "first_name", required = false) String firstName,
+            @RequestParam(name = "second_name", required = false) String secondName) {
+        return users.search(firstName, secondName).stream().map(UserResponse::from).toList();
     }
 }

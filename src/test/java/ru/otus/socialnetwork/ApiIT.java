@@ -1,10 +1,12 @@
 package ru.otus.socialnetwork;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Timestamp;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -200,6 +202,68 @@ class ApiIT {
     }
 
     @Test
+    void searchMatchesBothPrefixesAndReturnsFullProfilesInNumericIdOrder() throws Exception {
+        insertProfile(20, "Иван", "Петров");
+        insertProfile(3, "Иванна", "Петренко");
+        insertProfile(11, "Иван", "Петрова");
+        insertProfile(5, "Пётр", "Петров");
+        insertProfile(6, "Иван", "Сидоров");
+        insertProfile(7, "Диван", "Петров");
+        insertProfile(8, "Иван", "Супетров");
+
+        var response = search("  Ив  ", "  Пет  ");
+        assertThat(response.statusCode()).isEqualTo(200);
+        var profiles = json(response);
+        assertThat(profiles.isArray()).isTrue();
+        assertThat(profiles.size()).isEqualTo(3);
+        assertThat(profiles.get(0).get("id").asString()).isEqualTo("3");
+        assertThat(profiles.get(1).get("id").asString()).isEqualTo("11");
+        assertThat(profiles.get(2).get("id").asString()).isEqualTo("20");
+        assertThat(profiles.get(0)).isEqualTo(json(get("/user/get/3")));
+        assertThat(search("ив", "Пет").body()).isEqualTo("[]");
+        assertThat(search("НетТакогоИмени", "Пет").body()).isEqualTo("[]");
+        assertThat(search("Ив", "НетТакойФамилии").body()).isEqualTo("[]");
+    }
+
+    @Test
+    void searchRejectsMissingBlankAndTooLongPrefixes() throws Exception {
+        for (String path : List.of("/user/search", "/user/search?first_name=Ivan",
+                "/user/search?second_name=Petrov", "/user/search?first_name=Ivan&last_name=Petrov")) {
+            assertThat(get(path).statusCode()).as(path).isEqualTo(400);
+        }
+        for (String value : List.of("", " \t ", "A".repeat(101))) {
+            var firstNameResponse = search(value, "Пет");
+            assertThat(firstNameResponse.statusCode()).isEqualTo(400);
+            assertThat(json(firstNameResponse).get("errors").get(0).get("field").asString())
+                    .isEqualTo("first_name");
+            var secondNameResponse = search("Ив", value);
+            assertThat(secondNameResponse.statusCode()).isEqualTo(400);
+            assertThat(json(secondNameResponse).get("errors").get(0).get("field").asString())
+                    .isEqualTo("second_name");
+        }
+        assertThat(search("A".repeat(100), "B".repeat(100)).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void searchTreatsLikeWildcardsEscapeCharactersAndSqlAsLiteralText() throws Exception {
+        int id = 1;
+        for (String prefix : List.of("%", "_", "!", "\\", "' OR 1=1 --")) {
+            insertProfile(id, prefix + "Имя", prefix + "Фамилия");
+            insertProfile(id + 1, "ДругоеИмя", "ДругаяФамилия");
+            var firstNameResponse = search(prefix, prefix + "Фамилия");
+            assertThat(firstNameResponse.statusCode()).isEqualTo(200);
+            assertThat(json(firstNameResponse).size()).isEqualTo(1);
+            assertThat(json(firstNameResponse).get(0).get("id").asString()).isEqualTo(Integer.toString(id));
+            var secondNameResponse = search(prefix + "Имя", prefix);
+            assertThat(secondNameResponse.statusCode()).isEqualTo(200);
+            assertThat(json(secondNameResponse).size()).isEqualTo(1);
+            assertThat(json(secondNameResponse).get(0).get("id").asString()).isEqualTo(Integer.toString(id));
+            id += 2;
+        }
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM users", Integer.class)).isEqualTo(10);
+    }
+
+    @Test
     void registrationRollsBackWhenCredentialsInsertFails() throws Exception {
         jdbc.execute("ALTER TABLE user_credentials ADD CONSTRAINT test_reject_credentials CHECK (false) NOT VALID");
         try {
@@ -237,6 +301,18 @@ class ApiIT {
         var response = post("/user/register", data);
         assertThat(response.statusCode()).withFailMessage(response.body()).isEqualTo(200);
         return json(response).get("user_id").asString();
+    }
+
+    private void insertProfile(int id, String firstName, String secondName) {
+        jdbc.update("""
+                INSERT INTO users (id, first_name, second_name, birthdate)
+                OVERRIDING SYSTEM VALUE VALUES (?, ?, ?, ?)
+                """, id, firstName, secondName, java.sql.Date.valueOf("1995-05-20"));
+    }
+
+    private HttpResponse<String> search(String firstName, String secondName) throws Exception {
+        return get("/user/search?first_name=" + URLEncoder.encode(firstName, StandardCharsets.UTF_8)
+                + "&second_name=" + URLEncoder.encode(secondName, StandardCharsets.UTF_8));
     }
 
     private HttpResponse<String> post(String path, Object body) throws Exception {

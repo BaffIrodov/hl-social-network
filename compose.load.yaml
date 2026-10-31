@@ -1,0 +1,8 @@
+services:
+  db:
+    volumes:
+      - ./data/profile-names.json:/load/profile-names.json:ro
+      - ./scripts/generate-profiles.sql:/load/generate-profiles.sql:ro
+  app:
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/social_network_load

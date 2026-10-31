@@ -1,8 +1,11 @@
 package ru.otus.socialnetwork.repository;
 
 import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -41,9 +44,25 @@ public class UserRepository {
                 SELECT id, first_name, second_name, birthdate, gender, biography, city
                 FROM users WHERE id = :id
                 """;
-        return jdbc.query(sql, Map.of("id", id), (rs, row) -> new UserProfile(
+        return jdbc.query(sql, Map.of("id", id), UserRepository::mapProfile).stream().findFirst();
+    }
+
+    public List<UserProfile> searchByPrefixes(String firstNamePattern, String secondNamePattern) {
+        String sql = """
+                SELECT id, first_name, second_name, birthdate, gender, biography, city
+                FROM users
+                WHERE first_name LIKE :firstName ESCAPE '!'
+                  AND second_name LIKE :secondName ESCAPE '!'
+                ORDER BY id ASC
+                """;
+        return jdbc.query(sql, Map.of("firstName", firstNamePattern, "secondName", secondNamePattern),
+                UserRepository::mapProfile);
+    }
+
+    private static UserProfile mapProfile(ResultSet rs, int row) throws SQLException {
+        return new UserProfile(
                 rs.getInt("id"), rs.getString("first_name"), rs.getString("second_name"),
                 rs.getObject("birthdate", LocalDate.class), Gender.valueOf(rs.getString("gender")),
-                rs.getString("biography"), rs.getString("city"))).stream().findFirst();
+                rs.getString("biography"), rs.getString("city"));
     }
 }
