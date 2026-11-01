@@ -1,7 +1,7 @@
 services:
   db:
     volumes:
-      - ./data/profile-names.json:/load/profile-names.json:ro
+      - ./load-testing/data/profile-names.json:/load/profile-names.json:ro
       - ./load-testing/scripts/generate-profiles.sql:/load/generate-profiles.sql:ro
   app:
     environment:
