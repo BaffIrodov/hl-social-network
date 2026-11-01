@@ -22,7 +22,7 @@ docker compose exec db createdb -U postgres social_network_load
 Подключите словарь и SQL-скрипт к контейнеру и переключите приложение на нагрузочную базу:
 
 ```shell
-docker compose -f compose.yaml -f compose.load.yaml up --build -d
+docker compose -f compose.yaml -f load-testing/compose.load.yaml up --build -d
 docker compose logs -f app
 ```
 
@@ -33,13 +33,13 @@ Liquibase автоматически создаст таблицы. API дост
 
 В [profile-names.json](../data/profile-names.json) сохранены все уникальные
 имена и фамилии из исходного CSV OTUS: 138 имён и 1006 фамилий.
-Частоты не сохраняются. Исходный CSV для генерации больше не нужен.
 
 Каждая анкета получает:
 
 - случайное имя и фамилию из отдельных списков, с одинаковой вероятностью выбора;
 - случайную дату рождения: полный возраст от 20 до 50 лет включительно на день генерации;
-- `gender=UNSPECIFIED`, `biography=null`, `city=null`.
+- случайный пол `MALE` или `FEMALE`, с одинаковой вероятностью выбора;
+- `biography=null`, `city=null`.
 
 Дата рассчитывается по часовому поясу Москвы. Например, 31 октября 2026 года
 даты рождения выбираются с 1 ноября 1975 года по 31 октября 2006 года включительно.
@@ -48,7 +48,7 @@ Liquibase автоматически создаст таблицы. API дост
 Запустите генератор:
 
 ```shell
-docker compose -f compose.yaml -f compose.load.yaml exec -T db psql -U postgres -d social_network_load -f /load/generate-profiles.sql
+docker compose -f compose.yaml -f load-testing/compose.load.yaml exec -T db psql -U postgres -d social_network_load -f /load/generate-profiles.sql
 ```
 
 Команда заменяет существующие анкеты, пароли и сессии только в `social_network_load`.
@@ -56,7 +56,7 @@ docker compose -f compose.yaml -f compose.load.yaml exec -T db psql -U postgres 
 Скрипт останавливается, если запущен в другой базе.
 
 Генерация выполняется одной транзакцией. После неё обновляется статистика
-командой `ANALYZE users`. Дополнительные индексы не создаются.
+командой `ANALYZE users`.
 При повторном запуске набор будет новым; размер задаётся константой `profile_count`
 в [generate-profiles.sql](../scripts/generate-profiles.sql).
 Для замеров до и после индекса используйте один и тот же набор анкет.

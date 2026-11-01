@@ -35,11 +35,12 @@ BEGIN
 
     TRUNCATE users, user_credentials, user_sessions RESTART IDENTITY;
 
-    INSERT INTO users (first_name, second_name, birthdate)
+    INSERT INTO users (first_name, second_name, birthdate, gender)
     SELECT
         first_names[1 + floor(random() * cardinality(first_names))::integer],
         second_names[1 + floor(random() * cardinality(second_names))::integer],
-        birthdate_from + floor(random() * (birthdate_to - birthdate_from + 1))::integer
+        birthdate_from + floor(random() * (birthdate_to - birthdate_from + 1))::integer,
+        CASE WHEN random() < 0.5 THEN 'MALE' ELSE 'FEMALE' END::user_gender
     FROM generate_series(1, profile_count);
 
     RAISE NOTICE 'Generated % profiles; birthdates from % to %',
