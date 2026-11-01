@@ -1,16 +1,16 @@
 # Индексы для ручного сравнения
 
-Все кандидаты используют текущий SQL приложения: два условия `LIKE`, объединённые `AND`,
-и `ORDER BY id`. Поведение API не меняется.
+Все кандидаты используют запрос: два условия `LIKE`, объединённые `AND`,
+и `ORDER BY id`.
 
-| Вариант | Скрипт | Индексы |
-|---------|--------|---------|
-| Базовый | [00-no-search-index.sql](00-no-search-index.sql) | Только `users_pkey` |
-| 1 | [01-btree-name-surname.sql](01-btree-name-surname.sql) | B-tree: имя → фамилия, `varchar_pattern_ops` |
-| 2 | [02-btree-surname-name.sql](02-btree-surname-name.sql) | B-tree: фамилия → имя, `varchar_pattern_ops` |
-| 3 | [03-two-btree-indexes.sql](03-two-btree-indexes.sql) | Два отдельных B-tree с `varchar_pattern_ops` |
-| 4 | [04-btree-surname-only.sql](04-btree-surname-only.sql) | B-tree по фамилии с `varchar_pattern_ops` |
-| 5 | [05-gin-trgm.sql](05-gin-trgm.sql) | Составной GIN с `pg_trgm` |
+| Вариант | Скрипт                                                 | Индексы                                      |
+|---------|--------------------------------------------------------|----------------------------------------------|
+| Базовый | [00-no-search-index.sql](00-no-search-index.sql)       | Только `users_pkey`                          |
+| 1       | [01-btree-name-surname.sql](01-btree-name-surname.sql) | B-tree: имя → фамилия, `varchar_pattern_ops` |
+| 2       | [02-btree-surname-name.sql](02-btree-surname-name.sql) | B-tree: фамилия → имя, `varchar_pattern_ops` |
+| 3       | [03-two-btree-indexes.sql](03-two-btree-indexes.sql)   | Два отдельных B-tree с `varchar_pattern_ops` |
+| 4       | [04-btree-surname-only.sql](04-btree-surname-only.sql) | B-tree по фамилии с `varchar_pattern_ops`    |
+| 5       | [05-gin-trgm.sql](05-gin-trgm.sql)                     | Составной GIN с `pg_trgm`                    |
 
 ## Порядок работы
 
@@ -25,10 +25,6 @@
 Каждый файл в одной транзакции проверяет имя базы, удаляет известные поисковые
 индексы этого набора, создаёт выбранный вариант и выполняет `ANALYZE public.users`.
 Анкеты и первичный ключ сохраняются. При ошибке транзакции выполните `ROLLBACK`.
-
-Для возврата выбранного индекса из миграций используйте файл 02: запись Liquibase остаётся применённой,
-поэтому после ручного удаления перезапуск приложения не создаст индекс заново.
-Расширение `pg_trgm`, установленное вариантом 5, после переключения остаётся в базе.
 
 Запуск через Run и параметры — [Gatling](../../gatling/README.md).
 Порядок измерений и метрики — [методология](../../reports/user-search/README.md).
