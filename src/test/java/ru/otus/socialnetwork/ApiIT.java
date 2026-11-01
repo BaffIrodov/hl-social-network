@@ -278,15 +278,16 @@ class ApiIT {
     }
 
     @Test
-    void schemaHasOnlyPrimaryKeyIndexesAndMigrationIsRepeatable() throws Exception {
+    void schemaHasSearchIndexAndMigrationIsRepeatable() throws Exception {
         var indexes = jdbc.queryForList("""
                 SELECT indexname FROM pg_indexes WHERE schemaname = 'public'
                 AND tablename IN ('users', 'user_credentials', 'user_sessions') ORDER BY indexname
                 """, String.class);
-        assertThat(indexes).containsExactly("user_credentials_pkey", "user_sessions_pkey", "users_pkey");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class)).isEqualTo(4);
+        assertThat(indexes).containsExactly("user_credentials_pkey", "user_sessions_pkey",
+                "users_pkey", "users_surname_name_prefix_idx");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class)).isEqualTo(6);
         liquibase.afterPropertiesSet();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM databasechangelog", Integer.class)).isEqualTo(6);
     }
 
     private HashMap<String, Object> registration() {

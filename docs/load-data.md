@@ -33,7 +33,6 @@ Liquibase автоматически создаст таблицы. API дост
 
 В [profile-names.json](../data/profile-names.json) сохранены все уникальные
 имена и фамилии из исходного CSV OTUS: 138 имён и 1006 фамилий.
-Частоты не сохраняются. Исходный CSV для генерации больше не нужен.
 
 Каждая анкета получает:
 
@@ -57,9 +56,9 @@ docker compose -f compose.yaml -f compose.load.yaml exec -T db psql -U postgres 
 Скрипт останавливается, если запущен в другой базе.
 
 Генерация выполняется одной транзакцией. После неё обновляется статистика
-командой `ANALYZE users`. Дополнительные индексы не создаются.
+командой `ANALYZE users`.
 При повторном запуске набор будет новым; размер задаётся константой `profile_count`
-в [generate-profiles.sql](../scripts/generate-profiles.sql).
+в [generate-profiles.sql](../load-testing/scripts/generate-profiles.sql).
 Для замеров до и после индекса используйте один и тот же набор анкет.
 
 ## Проверка
