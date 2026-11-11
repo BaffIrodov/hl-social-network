@@ -1,0 +1,82 @@
+name: hl-social-network-replication
+
+x-postgres: &postgres
+  image: postgres:17-alpine
+  command:
+    - postgres
+    - -c
+    - wal_level=replica
+    - -c
+    - max_wal_senders=4
+    - -c
+    - wal_keep_size=256MB
+    - -c
+    - hot_standby=on
+    - -c
+    - shared_preload_libraries=pg_stat_statements
+  environment: &postgres-env
+    POSTGRES_DB: social_network_load
+    POSTGRES_PASSWORD: postgres
+    REPLICATION_PASSWORD: replication-lab
+  healthcheck:
+    test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "social_network_load"]
+    interval: 2s
+    timeout: 3s
+    retries: 30
+
+x-standby: &standby
+  <<: *postgres
+  user: postgres
+  entrypoint: ["/bin/sh", "/opt/replication/start-standby.sh"]
+  depends_on:
+    primary:
+      condition: service_healthy
+
+services:
+  primary:
+    <<: *postgres
+    volumes:
+      - primary-data:/var/lib/postgresql/data
+      - ./init-primary.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+
+  replica1:
+    <<: *standby
+    environment:
+      <<: *postgres-env
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICA_NAME: replica1
+    volumes:
+      - replica1-data:/var/lib/postgresql/data
+      - ./start-standby.sh:/opt/replication/start-standby.sh:ro
+
+  replica2:
+    <<: *standby
+    environment:
+      <<: *postgres-env
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICA_NAME: replica2
+    volumes:
+      - replica2-data:/var/lib/postgresql/data
+      - ./start-standby.sh:/opt/replication/start-standby.sh:ro
+
+  app:
+    build: ../..
+    ports:
+      - "${SERVER_PORT:-8880}:8880"
+    environment:
+      SPRING_PROFILES_ACTIVE: replication
+      DB_URL: jdbc:postgresql://primary:5432/social_network_load
+      DB_REPLICA1_URL: jdbc:postgresql://replica1:5432/social_network_load
+      DB_REPLICA2_URL: jdbc:postgresql://replica2:5432/social_network_load
+    depends_on:
+      primary:
+        condition: service_healthy
+      replica1:
+        condition: service_healthy
+      replica2:
+        condition: service_healthy
+
+volumes:
+  primary-data:
+  replica1-data:
+  replica2-data:

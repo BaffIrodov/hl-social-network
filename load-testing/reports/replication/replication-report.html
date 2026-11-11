@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Репликация PostgreSQL</title>
+  <style>
+    :root { color-scheme: light; --ink: #1c2937; --muted: #526575; --line: #dce3ea; --accent: #12546a; }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 24px; }
+    body { margin: 0; color: var(--ink); background: #edf1f4; font: 16px/1.65 "Segoe UI", Arial, sans-serif; }
+    main { max-width: 1160px; margin: 36px auto; padding: 48px 64px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+    h1, h2, h3 { line-height: 1.25; color: #172d3c; }
+    h1 { margin: 0 0 10px; font-size: 36px; letter-spacing: -.025em; }
+    h2 { margin: 40px 0 18px; font-size: 25px; }
+    h3 { margin: 28px 0 12px; font-size: 19px; }
+    p { margin: 12px 0; }
+    .report-date { color: var(--muted); margin: 0 0 24px; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    a:hover { color: #087b9f; }
+    nav { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 14px 18px; background: #f1f6f8; border-left: 3px solid #2d7188; border-radius: 3px; font-size: 14px; }
+    nav a { text-decoration: none; }
+    .table-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    thead th { background: #edf3f6; font-weight: 650; }
+    tbody th { font-weight: 550; }
+    tbody tr:nth-child(even) { background: #fafcfd; }
+    tbody tr:last-child > * { border-bottom: 0; }
+    .number { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .loss { color: #8b2a1a; font-weight: 700; }
+    code { padding: 2px 5px; border-radius: 3px; background: #edf2f5; font: .9em Consolas, "Courier New", monospace; overflow-wrap: anywhere; }
+    pre { margin: 0; padding: 16px 18px; overflow-x: auto; background: #f6f8fa; font-size: 13px; line-height: 1.5; }
+    pre code { padding: 0; background: none; font-size: inherit; }
+    details { margin: 18px 0; border: 1px solid var(--line); border-radius: 5px; }
+    summary { cursor: pointer; padding: 10px 14px; color: var(--accent); font-size: 14px; }
+    ul { padding-left: 24px; }
+    li { margin: 6px 0; }
+    @media (max-width: 800px) {
+      body { background: #fff; }
+      main { margin: 0; padding: 25px 18px; border: 0; border-radius: 0; }
+      h1 { font-size: 29px; }
+      h2 { font-size: 22px; }
+    }
+    @media print {
+      body { background: #fff; font-size: 10pt; }
+      main { max-width: none; margin: 0; padding: 0; border: 0; }
+      nav { display: none; }
+      h1, h2, h3 { break-after: avoid; }
+      table { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Репликация PostgreSQL</h1>
+    <p class="report-date">Замеры проведены 10 ноября 2026 года</p>
+    <nav aria-label="Содержание">
+      <a href="#setup">Стенд и маршрутизация</a>
+      <a href="#reads">Базовые замеры и чтение с реплик</a>
+      <a href="#distribution">SQL по узлам</a>
+      <a href="#failure">Эксперименты с отказом</a>
+      <a href="#promotion">Переключение</a>
+    </nav>
+  </header>
+
+  <section id="setup">
+    <h2>Стенд и маршрутизация</h2>
+    <p>В Docker Compose запущены один <code>primary</code> и две физические реплики PostgreSQL 17.11, <code>replica1</code> и <code>replica2</code>. У каждого узла свой том. В <code>primary</code> перенесён набор данных одиночной БД. При первом запуске реплики получили его через <code>pg_basebackup --wal-method=stream -R</code>, затем начали получать WAL. На <code>primary</code> роль <code>replicator</code> подключается из подсети узла по SCRAM. Для обеих реплик <code>pg_stat_replication</code> показал <code>streaming</code> и <code>async</code>.</p>
+    <p>В Spring-профиле <code>replication</code> используется <code>LazyConnectionDataSourceProxy</code>. При первом SQL-запросе в транзакции <code>readOnly = true</code> приложение берёт соединение с одной из реплик по очереди. Так выполняются <code>GET /user/get/{id}</code> и <code>GET /user/search</code>. Регистрация и логин используют <code>primary</code>. Liquibase подключается к его пулу напрямую через <code>@LiquibaseDataSource</code>.</p>
+    <p>На временной базе того же кластера счётчики подтвердили запись анкеты, хэша пароля и сессии, чтение хэша при логине и выполнение миграций на <code>primary</code>. Анкета, сессия и шесть записей миграций появились на обеих репликах после применения WAL.</p>
+  </section>
+
+  <section id="reads">
+    <h2>Базовые замеры и чтение с реплик</h2>
+    <p>Оба стенда использовали 1 000 000 анкет с ID от 1 до 1 000 000 и индекс <code>users_surname_name_prefix_idx</code> на <code>(second_name varchar_pattern_ops, first_name varchar_pattern_ops)</code>. Контрольная сумма анкет совпала на всех узлах. Одиночный пул допускал 10 соединений. В режиме с репликами лимит чтения составил по 5 соединений на узел.</p>
+    <p>Приложение работало в Docker на Java 21, Gatling 3.16.0 — на том же компьютере под Windows. Процессор Ryzen 7 3700X, Docker видел 16 логических процессоров и около 15,6 ГиБ памяти. Каждый API прогревался одним клиентом 30 секунд, затем тестировался со 100 одновременными клиентами в течение 60 секунд. Каждый клиент выполнял один GET и сразу заменялся следующим. Сценарии и параметры запросов совпадали на обоих стендах.</p>
+    <ul>
+      <li><code>/user/get/{id}</code> выбирал ID из миллиона анкет с seed <code>42</code>. Gatling проверял HTTP 200 и ID в ответе.</li>
+      <li><code>/user/search</code> искал по <code>first_name=Ив&amp;second_name=Ив</code>. Запрос возвращал 14 анкет. Gatling проверял HTTP 200 и JSON-массив.</li>
+    </ul>
+    <div class="table-wrap" tabindex="0">
+      <table id="read-results" aria-label="Результаты чтения на одной БД и с репликами">
+        <thead>
+          <tr><th scope="col">Запрос</th><th scope="col">Стенд</th><th scope="col" class="number">Успешных запросов</th><th scope="col" class="number">OK RPS</th><th scope="col" class="number">Средняя, мс</th><th scope="col" class="number">p95, мс</th><th scope="col" class="number">p99, мс</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row"><code>GET /user/get/{id}</code></th><td>Одна БД</td><td class="number">377 724</td><td class="number">6 295,4</td><td class="number">14</td><td class="number">31</td><td class="number">45</td></tr>
+          <tr><th scope="row"><code>GET /user/get/{id}</code></th><td>Две реплики</td><td class="number">434 264</td><td class="number">7 237,73</td><td class="number">13</td><td class="number">30</td><td class="number">46</td></tr>
+          <tr><th scope="row"><code>GET /user/search</code></th><td>Одна БД</td><td class="number">310 926</td><td class="number">5 182,1</td><td class="number">18</td><td class="number">39</td><td class="number">54</td></tr>
+          <tr><th scope="row"><code>GET /user/search</code></th><td>Две реплики</td><td class="number">336 224</td><td class="number">5 603,73</td><td class="number">17</td><td class="number">41</td><td class="number">59</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Все четыре измерения прошли без ошибок. OK RPS вырос на 15,0% для чтения по ID и на 8,1% для поиска. Сравнение относится к одному измерению каждого API на каждом стенде.</p>
+
+    <h3 id="distribution">SQL по узлам</h3>
+    <p>Для каждого прогона взята разница <code>pg_stat_statements.calls</code> между концом прогрева и концом замера. Сумма SQL-вызовов на репликах совпала с числом успешных HTTP-запросов.</p>
+    <div class="table-wrap" tabindex="0">
+      <table id="sql-results" aria-label="Число запросов SQL на каждом узле">
+        <thead><tr><th scope="col">Запрос</th><th scope="col" class="number">primary</th><th scope="col" class="number">replica1</th><th scope="col" class="number">replica2</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><code>GET /user/get/{id}</code></th><td class="number">0</td><td class="number">217 132</td><td class="number">217 132</td></tr>
+          <tr><th scope="row"><code>GET /user/search</code></th><td class="number">0</td><td class="number">168 112</td><td class="number">168 112</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <details>
+      <summary>SQL для подсчёта запросов</summary>
+      <pre><code>SELECT COALESCE(sum(calls) FILTER (WHERE query ILIKE '%FROM users WHERE id = %'), 0) AS get_calls,
+       COALESCE(sum(calls) FILTER (WHERE query ILIKE '%WHERE first_name LIKE %'), 0) AS search_calls
+FROM pg_stat_statements
+WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+  AND query ILIKE 'SELECT id, first_name, second_name,%';</code></pre>
+    </details>
+  </section>
+
+  <section id="failure">
+    <h2>Эксперименты с отказом primary</h2>
+    <p>Для каждого прогона создан отдельный Compose-проект с primary и двумя репликами. Четыре JDBC-клиента вставляли по одному UUID на транзакцию в таблицу <code>replication_write_probe</code>. Клиент записывал UUID в журнал после успешного <code>COMMIT</code>. Потерянными считались подтверждённые UUID, отсутствовавшие на новом primary.</p>
+    <p>В обоих режимах использовались <code>synchronous_commit=on</code> и <code>fsync=on</code>. В <code>async</code> список <code>synchronous_standby_names</code> пуст. В режиме <code>ANY 1 (replica1, replica2)</code> primary ждёт записи WAL на диск хотя бы одной реплики, прежде чем подтвердить коммит.</p>
+    <p>В первой паре прогонов остановили только primary. В контрольной паре сначала по очереди отключили оба потока WAL через <code>primary_conninfo</code>, оставили клиентов под нагрузкой, затем остановили primary. Во всех четырёх случаях primary получил <code>SIGKILL</code> и завершился с кодом 137.</p>
+
+    <h3>Скорость записи до отказа</h3>
+    <p>Подтверждения считались в окне около 10 секунд после трёх секунд прогрева, пока оба потока WAL работали. p95 измерен от начала <code>INSERT</code> до ответа на <code>COMMIT</code>.</p>
+    <div class="table-wrap" tabindex="0">
+      <table id="write-results" aria-label="Производительность записи до отказа">
+        <thead><tr><th scope="col">Режим</th><th scope="col">Сценарий отказа</th><th scope="col" class="number">Подтверждений/с</th><th scope="col" class="number">p95, мс</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><code>async</code></th><td>Падение primary</td><td class="number">587,62</td><td class="number">7,236</td></tr>
+          <tr><th scope="row"><code>ANY 1</code></th><td>Падение primary</td><td class="number">396,11</td><td class="number">11,418</td></tr>
+          <tr><th scope="row"><code>async</code></th><td>Разрыв WAL и падение primary</td><td class="number">591,74</td><td class="number">7,193</td></tr>
+          <tr><th scope="row"><code>ANY 1</code></th><td>Разрыв WAL и падение primary</td><td class="number">385,69</td><td class="number">12,109</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>В паре с падением только primary пропускная способность <code>ANY 1</code> была ниже на 32,6%, а p95 выше на 4,182 мс.</p>
+
+    <h3>Подтверждённые записи после отказа</h3>
+    <p>Счётчики охватывают весь прогон, включая прогрев и интервал между замером и падением primary. Контрольная запись после повышения учитывалась отдельно.</p>
+    <div class="table-wrap" tabindex="0">
+      <table id="loss-results" aria-label="Потери подтверждённых записей после отказа">
+        <thead><tr><th scope="col">Режим</th><th scope="col">Сбой</th><th scope="col" class="number">Подтверждено</th><th scope="col" class="number">На новом primary</th><th scope="col" class="number">Потеряно подтверждённых</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><code>async</code></th><td>Падение primary</td><td class="number">8 025</td><td class="number">8 025</td><td class="number">0</td></tr>
+          <tr><th scope="row"><code>ANY 1</code></th><td>Падение primary</td><td class="number">5 470</td><td class="number">5 470</td><td class="number">0</td></tr>
+          <tr><th scope="row"><code>async</code></th><td>Разрыв WAL и падение primary</td><td class="number">16 144</td><td class="number">11 132</td><td class="number loss">5 012</td></tr>
+          <tr><th scope="row"><code>ANY 1</code></th><td>Разрыв WAL и падение primary</td><td class="number">7 120</td><td class="number">7 120</td><td class="number">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>После фиксации разрыва обоих потоков <code>async</code> подтвердил ещё 3 167 записей. Все они вошли в число потерь. В контрольном прогоне <code>ANY 1</code> все четыре клиента ждали в <code>SyncRep</code> и получили ноль подтверждений после разрыва. Для этого прогона таймаут чтения JDBC увеличен с 5 до 20 секунд, чтобы клиенты дождались аварийной остановки. В каждом прогоне четыре операции завершились с <code>SQLSTATE 08006</code> без подтверждения коммита. Их UUID отсутствовали на новых primary.</p>
+
+    <h3 id="promotion">Переключение на новый primary</h3>
+    <p>Кандидат выбирался по максимальной позиции WAL, записанного на диск, с учётом позиции применённого WAL. При равных позициях выбиралась <code>replica1</code>. После <code>pg_promote()</code> вторую реплику подключили к новому primary. В режиме <code>ANY 1</code> новый primary ожидал подтверждение от оставшейся реплики. Контрольный <code>INSERT</code> выполнился на новом primary, запись появилась на подключённой реплике.</p>
+    <div class="table-wrap" tabindex="0">
+      <table id="promotion-results" aria-label="Позиции WAL и время восстановления записи">
+        <thead><tr><th scope="col">Прогон</th><th scope="col">WAL replica1</th><th scope="col">WAL replica2</th><th scope="col">Новый primary</th><th scope="col" class="number">До повышения, с</th><th scope="col" class="number">До контрольной записи, с</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><code>async</code></th><td><code>0/51F32B0</code></td><td><code>0/51F32B0</code></td><td>replica1</td><td class="number">3,99</td><td class="number">6,69</td></tr>
+          <tr><th scope="row"><code>quorum</code></th><td><code>0/5138B08</code></td><td><code>0/5138B08</code></td><td>replica1</td><td class="number">3,76</td><td class="number">8,44</td></tr>
+          <tr><th scope="row"><code>async-gap</code></th><td><code>0/520DF48</code></td><td><code>0/5295770</code></td><td>replica2</td><td class="number">4,30</td><td class="number">6,85</td></tr>
+          <tr><th scope="row"><code>quorum-gap</code></th><td><code>0/513F060</code></td><td><code>0/51CB648</code></td><td>replica2</td><td class="number">3,88</td><td class="number">8,66</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Оба интервала отсчитаны от вызова <code>docker kill</code>. Первый заканчивается по завершении <code>pg_promote()</code>, второй — при первом успешном контрольном <code>INSERT</code> через <code>psql</code>.</p>
+  </section>
+</main>
+</body>
+</html>

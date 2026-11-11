@@ -1,0 +1,8 @@
+app:
+  replication:
+    replica1-url: ${DB_REPLICA1_URL}
+    replica2-url: ${DB_REPLICA2_URL}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: ${spring.datasource.hikari.connection-timeout}
