@@ -16,6 +16,7 @@ final class WriteProbe {
         String url = args[0];
         Path output = Path.of(args[1]);
         int clients = Integer.parseInt(args[2]);
+        Files.createDirectories(output);
         var connections = new ArrayList<Connection>(clients);
 
         try (var executor = Executors.newFixedThreadPool(clients)) {

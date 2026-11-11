@@ -1,3 +1,5 @@
+#Requires -Version 7
+
 param(
     [Parameter(Mandatory)]
     [ValidateSet('async', 'quorum', 'async-gap', 'quorum-gap')]
@@ -19,12 +21,15 @@ $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 $project = "hl-social-network-failover-$Mode-$(Get-Date -Format 'yyyyMMddHHmmssfff')"
 $composeArgs = @('-p', $project, '-f', (Join-Path $PSScriptRoot 'compose.yaml'))
 $output = Join-Path $root "target/replication-failover/$project"
+$clientClasses = Join-Path $output 'classes'
+$clientDriver = Join-Path $output 'postgresql.jar'
 $clientName = "$project-client"
 $clientImage = 'hl-social-network-replication-app:latest'
+$clientOutput = '/tmp/write-probe'
 $replicas = @('replica1', 'replica2')
 $useQuorum = $Mode.StartsWith('quorum')
 $disconnectWal = $Mode.EndsWith('-gap')
-$clientStarted = $false
+$clientCreated = $false
 $standStarted = $false
 
 function Invoke-Docker {
@@ -49,10 +54,15 @@ function Set-SynchronousStandbys([string]$node, [string]$names) {
     Invoke-LabSql $node 'SELECT pg_reload_conf()' | Out-Null
 }
 
-New-Item -ItemType Directory -Path (Join-Path $output 'classes') | Out-Null
-Copy-Item -LiteralPath $jdbc -Destination (Join-Path $output 'postgresql.jar')
-& $javac --release 21 -d (Join-Path $output 'classes') (Join-Path $PSScriptRoot 'WriteProbe.java')
+New-Item -ItemType Directory -Path $clientClasses | Out-Null
+Copy-Item -LiteralPath $jdbc -Destination $clientDriver
+& $javac --release 21 -d $clientClasses (Join-Path $PSScriptRoot 'WriteProbe.java')
 if ($LASTEXITCODE -ne 0) { throw 'WriteProbe compilation failed' }
+if (-not $IsWindows) {
+    # Docker copies the input files as root. The Java client runs as app.
+    chmod -R 'a+rX' $clientClasses $clientDriver
+    if ($LASTEXITCODE -ne 0) { throw 'Could not make Java client files readable' }
+}
 Invoke-Docker image inspect $clientImage --format '{{.Id}}' | Out-Null
 
 try {
@@ -78,11 +88,14 @@ try {
         Set-Content -LiteralPath (Join-Path $output 'replication-before.txt') -Encoding utf8
     Invoke-LabSql 'primary' 'CREATE TABLE replication_write_probe (id uuid PRIMARY KEY)' | Out-Null
 
-    Invoke-Docker run -d --name $clientName --network "${project}_default" --mount "type=bind,source=$output,target=/probe" `
-        --entrypoint java $clientImage -cp /probe/classes:/probe/postgresql.jar WriteProbe `
-        'jdbc:postgresql://primary:5432/social_network_load?connectTimeout=5&socketTimeout=20' /probe $Clients | Out-Null
-    $clientStarted = $true
-    Wait-For { Test-Path -LiteralPath (Join-Path $output 'ready') } 'JDBC clients'
+    Invoke-Docker create --name $clientName --network "${project}_default" --entrypoint java $clientImage `
+        -cp /tmp/probe-classes:/tmp/postgresql.jar WriteProbe `
+        'jdbc:postgresql://primary:5432/social_network_load?connectTimeout=5&socketTimeout=20' $clientOutput $Clients | Out-Null
+    $clientCreated = $true
+    Invoke-Docker cp $clientClasses "${clientName}:/tmp/probe-classes"
+    Invoke-Docker cp $clientDriver "${clientName}:/tmp/postgresql.jar"
+    Invoke-Docker start $clientName | Out-Null
+    Wait-For { (Invoke-Docker exec $clientName /bin/sh -c 'if [ -f "$1" ]; then echo ready; fi' sh "$clientOutput/ready") -eq 'ready' } 'JDBC clients'
     Start-Sleep -Seconds 3
     $measureFrom = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     Write-Host "Measuring $Clients writers for $MeasurementSeconds seconds"
@@ -114,7 +127,9 @@ try {
     Write-Host 'Sending SIGKILL to the experiment primary'
     $recovery = [System.Diagnostics.Stopwatch]::StartNew()
     Invoke-Docker kill --signal SIGKILL $primaryId | Out-Null
-    New-Item -ItemType File -Path (Join-Path $output 'stop') | Out-Null
+    $stopFile = Join-Path $output 'stop'
+    New-Item -ItemType File -Path $stopFile | Out-Null
+    Invoke-Docker cp $stopFile "${clientName}:$clientOutput/stop"
     if ((Invoke-Docker wait $clientName) -ne '0') { throw 'Write client failed to save its ledger' }
 
     $positions = foreach ($node in $replicas) {
@@ -154,6 +169,7 @@ SELECT pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn(),
     $rows = Invoke-LabSql $leader "SELECT id FROM replication_write_probe WHERE id <> '$marker' ORDER BY id"
     $rows | Set-Content -LiteralPath (Join-Path $output 'new-primary-ids.txt') -Encoding utf8
     foreach ($id in $rows) { [void]$actual.Add($id) }
+    Invoke-Docker cp "${clientName}:$clientOutput/." $output
     $events = @(Get-ChildItem -LiteralPath $output -Filter 'client-*.csv' -File | ForEach-Object { Import-Csv -LiteralPath $_.FullName })
     $acknowledged = @($events | Where-Object outcome -eq 'confirmed')
     $unconfirmed = @($events | Where-Object outcome -eq 'unconfirmed')
@@ -188,7 +204,7 @@ SELECT pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn(),
     }
     $summary | ConvertTo-Json -Depth 4 | Tee-Object -FilePath (Join-Path $output 'summary.json')
 } finally {
-    if ($clientStarted) {
+    if ($clientCreated) {
         docker logs $clientName 2>&1 | Set-Content -LiteralPath (Join-Path $output 'client.log') -Encoding utf8
         docker rm -f $clientName | Out-Null
     }

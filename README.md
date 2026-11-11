@@ -214,3 +214,7 @@ ID назначается автоматически при регистраци
 даты рождения — случайные, возраст от 20 до 50 лет включительно.
 Нагрузочные тесты — [Gatling](load-testing/gatling/README.md).
 Методология исследования индексов — [отчёт по нагрузочному тестированию](load-testing/reports/user-search/README.md).
+
+## Репликация PostgreSQL
+
+[Инструкция по запуску и проверке](load-testing/replication/README.md) · [Итоговый HTML-отчёт](load-testing/reports/replication/replication-report.html)
