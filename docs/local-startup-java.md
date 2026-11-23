@@ -14,7 +14,7 @@ docker compose stop app
 Запустите PostgreSQL и дождитесь готовности:
 
 ```shell
-docker compose up -d --wait db
+docker compose up -d --wait db redis
 ```
 
 Запустите приложение.
