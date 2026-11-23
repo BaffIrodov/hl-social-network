@@ -2,8 +2,8 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Social network",
-    "version": "1.1.0",
-    "description": "API for registration, authentication, public profiles and prefix search. All endpoints are public."
+    "version": "1.3.0",
+    "description": "API for registration, authentication, public profiles, prefix search, friends and posts."
   },
   "servers": [
     {
@@ -315,6 +315,311 @@
           }
         }
       }
+    },
+    "/friend/set/{user_id}": {
+      "put": {
+        "description": "Добавляет пользователя в друзья. Повторный вызов сохраняет одну связь.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UserId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Связь добавлена"
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "404": {
+            "description": "Пользователь не найден",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/friend/delete/{user_id}": {
+      "put": {
+        "description": "Удаляет пользователя из списка друзей текущего пользователя.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UserId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Связь удалена или уже отсутствует"
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/post/create": {
+      "post": {
+        "description": "Публикует пост от имени пользователя из сессии.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "$ref": "#/components/schemas/PostText"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "UUID созданного поста",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostId"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/post/update": {
+      "put": {
+        "description": "Меняет текст поста автора. Дата публикации сохраняется.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/PostId"
+                  },
+                  "text": {
+                    "$ref": "#/components/schemas/PostText"
+                  }
+                },
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Текст поста изменён"
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "404": {
+            "description": "Пост отсутствует или принадлежит другому пользователю",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/post/delete/{id}": {
+      "put": {
+        "description": "Удаляет пост автора.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PostId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Пост удалён"
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "404": {
+            "description": "Пост отсутствует или принадлежит другому пользователю",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
+    },
+    "/post/feed": {
+      "get": {
+        "description": "Возвращает страницу из 1000 последних постов друзей, от новых к старым. При одинаковом времени публикации посты сортируются по UUID по убыванию.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Страница ленты. За её пределами возвращается пустой массив.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Post"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "500": {
+            "$ref": "#/components/responses/5xx"
+          },
+          "503": {
+            "$ref": "#/components/responses/5xx"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -324,6 +629,36 @@
         "description": "Positive integer ID 1..2147483647, represented as a string without leading zeros.",
         "pattern": "^[1-9][0-9]{0,9}$",
         "example": "123"
+      },
+      "PostId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID поста"
+      },
+      "PostText": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Текст с хотя бы одним непробельным символом. Нулевой символ запрещён."
+      },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PostId"
+          },
+          "text": {
+            "$ref": "#/components/schemas/PostText"
+          },
+          "author_user_id": {
+            "$ref": "#/components/schemas/UserId"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "author_user_id"
+        ],
+        "additionalProperties": false
       },
       "BirthDate": {
         "type": "string",
@@ -429,10 +764,32 @@
     },
     "responses": {
       "400": {
-        "description": "Невалидные данные ввода"
+        "description": "Невалидные данные ввода",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
       },
       "401": {
-        "description": "Неавторизованный доступ"
+        "description": "Требуется действительный Bearer-токен",
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string",
+              "example": "Bearer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
       },
       "5xx": {
         "description": "Ошибка сервера",

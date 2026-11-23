@@ -15,6 +15,17 @@ services:
       timeout: 3s
       retries: 20
 
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
   app:
     build: .
     ports:
@@ -24,8 +35,11 @@ services:
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       TOKEN_TTL: ${TOKEN_TTL:-6h}
+      SPRING_DATA_REDIS_HOST: redis
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 

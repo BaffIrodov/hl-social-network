@@ -13,6 +13,10 @@ spring:
       connection-timeout: 5000
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  data:
+    redis:
+      connect-timeout: 1s
+      timeout: 2s
   jackson:
     deserialization:
       fail-on-unknown-properties: true

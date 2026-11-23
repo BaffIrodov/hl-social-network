@@ -33,7 +33,7 @@ BEGIN
         RAISE EXCEPTION 'Names must contain between 1 and 100 characters';
     END IF;
 
-    TRUNCATE users, user_credentials, user_sessions RESTART IDENTITY;
+    TRUNCATE users, user_credentials, user_sessions, friendships, posts, feed_events RESTART IDENTITY;
 
     INSERT INTO users (first_name, second_name, birthdate, gender)
     SELECT

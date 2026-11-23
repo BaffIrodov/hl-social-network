@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.otus.socialnetwork.repository.SessionRepository;
 
-/** Session lookup for future protected endpoints. Current homework endpoints are public. */
 @Service
 public class SessionService {
     private final SessionRepository sessions;
@@ -17,7 +16,8 @@ public class SessionService {
         this.clock = clock;
     }
 
-    @Transactional(readOnly = true)
+    // Session reads use the primary so tokens work immediately after login.
+    @Transactional
     public Optional<Integer> resolveUserId(String token) {
         if (token == null || !token.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")) {
             return Optional.empty();

@@ -8,9 +8,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -72,8 +71,11 @@ public class ApiErrorHandler {
     private ResponseEntity<ApiError> response(HttpStatus status, String message,
             List<FieldError> errors,
             HttpServletRequest request) {
-        return ResponseEntity.status(status)
-                .body(new ApiError(message, requestId(request), errors));
+        var response = ResponseEntity.status(status);
+        if (status == HttpStatus.UNAUTHORIZED) {
+            response.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        }
+        return response.body(new ApiError(message, requestId(request), errors));
     }
 
     private static String requestId(HttpServletRequest request) {

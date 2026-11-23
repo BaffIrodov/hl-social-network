@@ -19,7 +19,15 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.BAD_REQUEST, message, field);
     }
 
+    public static ApiException unauthorized() {
+        return new ApiException(HttpStatus.UNAUTHORIZED, "Требуется действительный Bearer-токен", null);
+    }
+
     public static ApiException userNotFound() {
         return new ApiException(HttpStatus.NOT_FOUND, "Пользователь не найден", null);
+    }
+
+    public static ApiException postNotFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, "Пост не найден", null);
     }
 }
