@@ -110,6 +110,26 @@ docker compose -p "$review" exec -T redis redis-cli EXISTS 'feed:{1}:order' 'fee
 Ожидаются `3`, `True` и `2`. Вернулись те же посты в том же порядке, а оба ключа
 снова появились в Redis.
 
+## 7. Проверьте срок жизни кеша (TTL)
+
+Сразу после восстановления ленты `TTL` должен показать около `600` секунд
+для каждого ключа. Чтобы увидеть удаление по времени, сократите срок жизни
+этих двух ключей до пяти секунд.
+
+```powershell
+docker compose -p "$review" exec -T redis redis-cli TTL 'feed:{1}:order'
+docker compose -p "$review" exec -T redis redis-cli TTL 'feed:{1}:posts'
+docker compose -p "$review" exec -T redis redis-cli EXPIRE 'feed:{1}:order' 5
+docker compose -p "$review" exec -T redis redis-cli EXPIRE 'feed:{1}:posts' 5
+Start-Sleep -Seconds 6
+docker compose -p "$review" exec -T redis redis-cli EXISTS 'feed:{1}:order' 'feed:{1}:posts'
+```
+
+Обе команды `EXPIRE` должны вернуть `1`. Через шесть секунд `EXISTS` должен
+вернуть `0`. Redis автоматически удалил оба ключа ленты.
+
+## Остановите стенд
+
 Когда проверка закончится, удалите контейнеры стенда и его том PostgreSQL.
 
 ```powershell
