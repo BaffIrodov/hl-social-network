@@ -65,12 +65,13 @@ docker compose down
 Полученный ID автоматически сохраняется в переменные коллекции
 и подставляется в следующие запросы.
 
-Токен входа тоже сохраняется, но для текущих методов он не требуется.
+Токен входа тоже сохраняется в переменных коллекции.
 
 ## Интеграционные тесты
 
 Для запуска тестов на компьютере нужен JDK 21.
-PostgreSQL должен работать в Docker.
+Запустите PostgreSQL и Redis в Docker.
+Тесты ленты используют базу Redis 15.
 
 Один раз создайте отдельную тестовую базу, если её ещё нет:
 
@@ -83,7 +84,7 @@ docker compose exec db createdb -U postgres social_network_test
 Linux/macOS:
 
 ```shell
-./mvnw -Pintegration-test verify
+sh ./mvnw -Pintegration-test verify
 ```
 
 Windows PowerShell:
